@@ -1,0 +1,45 @@
+local proxy_url = "#collectionproxy"
+function init(self)
+	msg.post(".", "acquire_input_focus")
+end
+
+local function load()
+	msg.post(proxy_url, "init")
+	msg.post(proxy_url, "enable")
+end
+
+local function finish_unload()
+	msg.post(proxy_url, "disable")
+	msg.post(proxy_url, "final")
+	msg.post(proxy_url, "unload")
+end
+
+local function start_load()
+	msg.post(proxy_url, "load")
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("start") then
+		start_load()
+		self.loader = sender
+	end
+	if message_id == hash("finish") then
+		finish_unload()
+		self.unloader = sender
+	end
+
+	if message_id == hash("proxy_loaded") then
+		load()
+		msg.post(self.loader, "proxy_loaded")
+	end
+	if message_id == hash("proxy_unloaded") then
+
+		msg.post(self.unloader, "proxy_unloaded")
+	end
+end
+
+function final(self)
+	finish_unload()
+end
+
+function on_reload(self) end

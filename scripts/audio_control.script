@@ -1,0 +1,27 @@
+local random = require("common.random")
+local audio = require("common.audio")
+
+local pool_data = {}
+
+function init(self)
+	audio.on_register:subscribe(function(outline, gameobject)
+		for prop, pool in pairs(outline) do
+			local url = msg.url(gameobject .. "#" .. prop)
+			if pool_data[pool] == nil then
+				pool_data[pool] = { url }
+			else
+				table.insert(pool_data[pool], url)
+			end
+
+			audio.pool_play(pool):subscribe(function(action)
+				local play_url = random.choice(pool_data[pool])
+				sound.play(play_url)
+			end)
+			audio.pool_stop(pool):subscribe(function(action)
+				for _, stop_url in ipairs(pool_data[pool]) do
+					sound.stop(stop_url)
+				end
+			end)
+		end
+	end)
+end
