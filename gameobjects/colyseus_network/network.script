@@ -1,0 +1,82 @@
+local ColyseusClient = require("colyseus.client")
+local ctable = require("common.table")
+local network = require("common.network")
+local log = require("common.log")
+log = log.module("network")
+
+local connect = nil
+local reconection_token = false
+local sanitization_messages = {
+  "move_player",
+}
+local function tick(room) end
+local function stop_pollin_reconnect(timer_handle)
+  timer.cancel(timer_handle)
+end
+local function while_disconnected(self, client)
+  return timer.delay(0.5, true, function()
+    if connect ~= nil then
+      log:info("trying to reconnect...")
+      client:reconnect(reconection_token, connect(self, client))
+    else
+      log:warn("connect func is not defined")
+    end
+  end)
+end
+connect = function(self, client)
+  return function(err, room)
+    -- code
+    if err ~= nil then
+      log:error("Join error ", err)
+    end
+
+    log:info("joined successfully", room.sessionId)
+    ---@type any
+    local timer_handle = false
+    self.room = room
+
+    room:on("state_change", function(state)
+      log:info("state change", state)
+      tick(room)
+      if timer_handle then
+        stop_pollin_reconnect(timer_handle)
+      end
+    end)
+
+    room:on("error", function(code, message)
+      log:error("code => %s, message => %s", code, message)
+    end)
+    room:on("leave", function()
+      room:removeAllListeners()
+      self.room = nil
+      timer_handle = while_disconnected(self, client)
+    end)
+  end
+end
+
+function init(self)
+  local client = ColyseusClient.new("ws://localhost:2567")
+  client:join_or_create("game", {}, connect(self, client))
+
+  -- Add initialization code here
+  -- Learn more: https://defold.com/manuals/script/
+  -- Remove this function if not needed
+end
+
+function update(self, dt)
+  if not self.room then
+    return
+  end
+  for key, payload in pairs(network.messages) do
+    assert(ctable.find(sanitization_messages, key), string.format("Message %s is not sanitized", key))
+    log:info("sending %s", key)
+    self.room:send(key, payload)
+  end
+  network.on_tick()
+end
+
+function on_message(self, message_id, message, sender)
+  -- Add message-handling code here
+  -- Learn more: https://defold.com/manuals/message-passing/
+  -- Remove this function if not needed
+end

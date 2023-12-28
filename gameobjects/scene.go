@@ -16,7 +16,7 @@ components {
 embedded_components {
   id: "collectionproxy"
   type: "collectionproxy"
-  data: "collection: \"/main/scenes/freemode.collection\"\n"
+  data: "collection: \"/main/main.collection\"\n"
   "exclude: false\n"
   ""
   position {

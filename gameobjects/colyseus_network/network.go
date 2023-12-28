@@ -1,6 +1,6 @@
 components {
-  id: "coroutine"
-  component: "/common/scripts/coroutine.script"
+  id: "script"
+  component: "/common/gameobjects/colyseus_network/network.script"
   position {
     x: 0.0
     y: 0.0
