@@ -1,7 +1,7 @@
-local NewClass = require("common.new_class")
+local util = require("common.util")
 local matching = nil
 
-local Logger = NewClass({})
+local Logger = util.NewClass({})
 function Logger.new(namespace)
   --- @class Logger
   --- @field namespace string
@@ -29,7 +29,6 @@ Logger:_meta("info")
 Logger:_meta("warn")
 Logger:_meta("error")
 
----@type Logger
 local M = Logger()
 
 ---Creates a logger at module level
