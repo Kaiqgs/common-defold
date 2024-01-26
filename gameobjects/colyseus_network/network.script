@@ -9,7 +9,9 @@ local reconection_token = false
 local sanitization_messages = {
   "move_player",
 }
-local function tick(room) end
+local function tick(room)
+  network.on_tick(room)
+end
 local function stop_pollin_reconnect(timer_handle)
   timer.cancel(timer_handle)
 end
@@ -35,13 +37,36 @@ connect = function(self, client)
     local timer_handle = false
     self.room = room
 
-    room:on("state_change", function(state)
-      log:info("state change", state)
+    log:info("Binded state change.")
+    -- room.state.listen("position", function(current_pos, previous_pos)
+    --   log:info("New position")
+    --
+    --   pprint(current_pos)
+    --   pprint(previous_pos)
+    -- end)
+    --
+    -- room.state.listen("velocity", function(current_vel, previous_vel)
+    --   log:info("New velocity")
+    --   pprint(current_vel)
+    --   pprint(previous_vel)
+    -- end)
+
+    
+    room.state:on_change(function()
+      log:info(string.format("state_on_change %s", room.sessionId))
       tick(room)
       if timer_handle then
         stop_pollin_reconnect(timer_handle)
       end
     end)
+    -- room:on("state_change", function(state)
+    --   log:info("on_state_change")
+    --   pprint(state)
+    --   -- tick(room)
+    --   -- if timer_handle then
+    --   --   stop_pollin_reconnect(timer_handle)
+    --   -- end
+    -- end)
 
     room:on("error", function(code, message)
       log:error("code => %s, message => %s", code, message)
@@ -72,7 +97,7 @@ function update(self, dt)
     log:info("sending %s", key)
     self.room:send(key, payload)
   end
-  network.on_tick()
+    network.clear_messages()
 end
 
 function on_message(self, message_id, message, sender)
