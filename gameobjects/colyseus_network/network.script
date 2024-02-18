@@ -10,7 +10,7 @@ local sanitization_messages = {
   "move_player",
 }
 local function tick(room)
-  network.on_tick(room)
+  network.tick(room)
 end
 local function stop_pollin_reconnect(timer_handle)
   timer.cancel(timer_handle)
@@ -31,7 +31,7 @@ connect = function(self, client)
     if err ~= nil then
       log:error("Join error ", err)
     end
-
+    network.connect(room)
     log:info("joined successfully", room.sessionId)
     ---@type any
     local timer_handle = false
