@@ -1,4 +1,6 @@
+local fps = require("common.fps")
 local ColyseusClient = require("colyseus.client")
+local util = require("common.util")
 local ctable = require("common.table")
 local network = require("common.network")
 local log = require("common.log")
@@ -6,102 +8,113 @@ log = log.module("network")
 
 local connect = nil
 local reconection_token = false
-local sanitization_messages = {
-  "move_player",
-}
 local function tick(room)
-  network.tick(room)
+    network.on_tick(room)
 end
 local function stop_pollin_reconnect(timer_handle)
-  timer.cancel(timer_handle)
+    timer.cancel(timer_handle)
 end
 local function while_disconnected(self, client)
-  return timer.delay(0.5, true, function()
-    if connect ~= nil then
-      log:info("trying to reconnect...")
-      client:reconnect(reconection_token, connect(self, client))
-    else
-      log:warn("connect func is not defined")
-    end
-  end)
+    return timer.delay(0.5, true, function()
+        if connect ~= nil then
+            log:info("trying to reconnect...")
+            client:reconnect(reconection_token, connect(self, client))
+        else
+            log:warn("connect func is not defined")
+        end
+    end)
 end
 connect = function(self, client)
-  return function(err, room)
-    -- code
-    if err ~= nil then
-      log:error("Join error ", err)
+    return function(err, room)
+        -- code
+        if err ~= nil then
+            log:error("Join error ", err)
+        end
+        network.on_connect(room)
+        log:info("joined successfully", room.sessionId)
+        ---@type any
+        local timer_handle = false
+        self.room = room
+
+        log:info("Binded state change.")
+        -- room.state.listen("position", function(current_pos, previous_pos)
+        --   log:info("New position")
+        --
+        --   pprint(current_pos)
+        --   pprint(previous_pos)
+        -- end)
+        --
+        -- room.state.listen("velocity", function(current_vel, previous_vel)
+        --   log:info("New velocity")
+        --   pprint(current_vel)
+        --   pprint(previous_vel)
+        -- end)
+
+        room.state:on_change(function()
+            log:info(string.format("state_on_change %s", room.sessionId))
+            tick(room)
+            tick(room)
+            if timer_handle then
+                stop_pollin_reconnect(timer_handle)
+            end
+        end)
+        -- room:on("state_change", function(state)
+        --   log:info("on_state_change")
+        --   pprint(state)
+        --   -- tick(room)
+        --   -- if timer_handle then
+        --   --   stop_pollin_reconnect(timer_handle)
+        --   -- end
+        -- end)
+
+        room:on("error", function(code, message)
+            log:error("code => %s, message => %s", code, message)
+        end)
+        room:on("leave", function()
+            room:removeAllListeners()
+            self.room = nil
+            timer_handle = while_disconnected(self, client)
+        end)
     end
-    network.connect(room)
-    log:info("joined successfully", room.sessionId)
-    ---@type any
-    local timer_handle = false
-    self.room = room
-
-    log:info("Binded state change.")
-    -- room.state.listen("position", function(current_pos, previous_pos)
-    --   log:info("New position")
-    --
-    --   pprint(current_pos)
-    --   pprint(previous_pos)
-    -- end)
-    --
-    -- room.state.listen("velocity", function(current_vel, previous_vel)
-    --   log:info("New velocity")
-    --   pprint(current_vel)
-    --   pprint(previous_vel)
-    -- end)
-
-    
-    room.state:on_change(function()
-      log:info(string.format("state_on_change %s", room.sessionId))
-      tick(room)
-      if timer_handle then
-        stop_pollin_reconnect(timer_handle)
-      end
-    end)
-    -- room:on("state_change", function(state)
-    --   log:info("on_state_change")
-    --   pprint(state)
-    --   -- tick(room)
-    --   -- if timer_handle then
-    --   --   stop_pollin_reconnect(timer_handle)
-    --   -- end
-    -- end)
-
-    room:on("error", function(code, message)
-      log:error("code => %s, message => %s", code, message)
-    end)
-    room:on("leave", function()
-      room:removeAllListeners()
-      self.room = nil
-      timer_handle = while_disconnected(self, client)
-    end)
-  end
 end
 
 function init(self)
-  local client = ColyseusClient.new("ws://localhost:2567")
-  client:join_or_create("game", {}, connect(self, client))
-
-  -- Add initialization code here
-  -- Learn more: https://defold.com/manuals/script/
-  -- Remove this function if not needed
+    local client = ColyseusClient.new("ws://localhost:2567")
+    client:join_or_create("game", {}, connect(self, client))
+    self.time_elapsed = 0
 end
 
 function update(self, dt)
-  if not self.room then
-    return
-  end
-  for key, payload in pairs(network.messages) do
-    assert(ctable.find(sanitization_messages, key), string.format("Message %s is not sanitized", key))
-    log:info("sending %s", key)
-    self.room:send(key, payload)
-  end
+    if not self.room then
+        return
+    end
+
+    self.time_elapsed = self.time_elapsed + dt
+
+    -- local tick_ = math.floor(self.time_elapsed / network.tick_rate_s)
+    -- if tick_ ~= self.last_tick then
+    --     network.tick = tick_
+    --     network.on_tick(self.room)
+    -- end
+    -- self.last_tick = tick_
+    local client_ahead_dif = -math.min(network.tick_dif, -1)
+    local correction = 0.005 / client_ahead_dif
+    if self.time_elapsed >= (network.tick_rate_s - correction) then
+        network.on_client_ticked(self.room)
+        self.time_elapsed = self.time_elapsed % network.tick_rate_s
+    end
+
+    -- for _ = 1, math.max(network.tick_dif, 0) do
+    --     log:warn(string.format("skipping %dx ticks ", network.tick_dif))
+    --     network.on_client_ticked(self.room)
+    -- end
+
+    for key, payload in pairs(network.messages) do
+        assert(ctable.find(network.sanitization_messages, key), string.format("Message %s is not sanitized", key))
+        -- log:info(string.format("sending `%s`", key))
+        self.room:send(key, payload)
+    end
     network.clear_messages()
 end
 
-function on_message(self, message_id, message, sender)
-  -- Add message-handling code here
-  -- Learn more: https://defold.com/manuals/message-passing/
-  -- Remove this function if not needed
-end
+on_message = util.on_message_map({})

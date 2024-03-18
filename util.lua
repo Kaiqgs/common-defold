@@ -1,5 +1,6 @@
-local log = require("common.log")
-local M = { NewClass = require("common.new_class") }
+local log_module = require("common.log")
+local M = { NewClass = require("common.new_class").new_class }
+local log = log_module.module("util")
 
 M.on_message_map = function(message_mapping)
     local on_message = function(self, message_id, message, sender)
@@ -7,10 +8,19 @@ M.on_message_map = function(message_mapping)
         if action ~= nil then
             action(self, message_id, message, sender)
         else
-            log:warn(string.format("unhandled message of id: %s from %s", message_id, sender))
+            local wrn_msg = string.format("unhandled message of id: %s from %s", message_id, sender)
+            log:warn(wrn_msg)
         end
     end
     return on_message
+end
+
+function M.shallow_copy(table)
+    local copy = {}
+    for k, v in pairs(table) do
+        copy[k] = v
+    end
+    return copy
 end
 
 M.ModuloWrap = function(one_indexed, n, delta)
@@ -39,6 +49,14 @@ function M.irange(i)
             return _i
         end
     end
+end
+
+local ran_names = {}
+function M.run_once(name, fn)
+   if ran_names[name] == nil then
+        ran_names[name] = 1
+        fn()
+   end
 end
 
 return M

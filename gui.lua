@@ -44,6 +44,7 @@ function ExtraNode.new(node_id, layer, shadowColor)
 		on_release = Event(),
 	}
 	local self = setmetatable(new, ExtraNode)
+    self.__index = self
 	return self
 end
 

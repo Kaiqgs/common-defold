@@ -35,6 +35,7 @@ function FiniteState.new(o)
 		end
 	end
 	local self = setmetatable(new, FiniteState)
+    self.__index = self
 	function self:enter(...)
 		self.done = o.done or false;
 		(o.enter or emptyFunc)(self, ...)
@@ -80,6 +81,7 @@ function FiniteStateMachine.new(o)
 		},
 		FiniteStateMachine
 	)
+    self.__index = self
 	return self
 end
 
