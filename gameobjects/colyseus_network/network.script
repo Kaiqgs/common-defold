@@ -31,6 +31,7 @@ connect = function(self, client)
             log:error("Join error ", err)
         end
         network.on_connect(room)
+        network.on_client_ticked(room)
         log:info("joined successfully", room.sessionId)
         ---@type any
         local timer_handle = false
@@ -67,6 +68,11 @@ connect = function(self, client)
         --   -- end
         -- end)
 
+        room:on_message("tick_sync", function(msg)
+            network.tick = 0
+            log:info("Tick synced.")
+        end)
+
         room:on("error", function(code, message)
             log:error("code => %s, message => %s", code, message)
         end)
@@ -88,19 +94,23 @@ function update(self, dt)
     if not self.room then
         return
     end
-
     self.time_elapsed = self.time_elapsed + dt
-
-    -- local tick_ = math.floor(self.time_elapsed / network.tick_rate_s)
-    -- if tick_ ~= self.last_tick then
-    --     network.tick = tick_
-    --     network.on_tick(self.room)
-    -- end
-    -- self.last_tick = tick_
     local client_ahead_dif = -math.min(network.tick_dif, -1)
-    local correction = 0.005 / client_ahead_dif
-    if self.time_elapsed >= (network.tick_rate_s - correction) then
-        network.on_client_ticked(self.room)
+    local client_behind_dif = math.max(network.tick_dif, 1)
+    local drop_diff = 5
+
+    network.tick_dif = (self.room.state.tick or 0) - network.tick
+    if self.time_elapsed >= network.tick_rate_s then
+        local n = math.floor(self.time_elapsed / network.tick_rate_s)
+        if client_ahead_dif > drop_diff then
+            print("why am i here")
+            -- local excessive_ticks = (client_ahead_dif - drop_diff)
+            -- n = n - excessive_ticks
+        else
+            for _ in util.irange(n + (network.tick_dif == 0 and 1 or 0)) do
+                network.on_client_ticked(self.room)
+            end
+        end
         self.time_elapsed = self.time_elapsed % network.tick_rate_s
     end
 

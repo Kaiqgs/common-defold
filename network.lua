@@ -1,35 +1,36 @@
 local Event = require("common.event")
-local Deque = require("common.deque")
 local nc = require("common.new_class")
 local util = require("common.util")
 local log = require("common.log")
 log = log.module("commonet")
 
----@class Input
----@field value table
----@field name string
----@field tick_reference number
----@field apply function
-local Input = nc.new_class({})
-Input.new = nc.new_init_fn(Input, {
-    tick_reference = 0,
-    value = {},
-    name = "",
-    apply = function(...) end,
-})
-
 ---@class CommonNetwork
 ---@field messages table
 ---@field ticked Event
+---@field connected Event
+---@field client_ticked Event
+---@field input_queue table
+---@field tick number
+---@field tick_rate_s number
+---@field sanitization_messages table
+---@field tick_dif number
+---@field on_tick fun(room:table)
+---@field on_connect fun(room:table)
+---@field on_client_ticked fun(room:table)
+---@field on_input fun(inputmsg:any)
+---@field set_tick_rate fun(tick_rate:number)
+---@field set_sanitization_messages fun(sm:table)
+---@field register_message fun(key:string, payload:any)
+---@field clear_messages fun()
+---@field clear_outsynced_inputs fun(server_tick:number)
 local M = {
     messages = {},
     ticked = Event(), -- was: on_tick
     connected = Event(), -- was: on_connect
     -- Client needs to be manually invoked
     client_ticked = Event(),
-    input_queue = Deque(),
+    input_queue = {},
     tick = 0,
-    Input = Input,
     tick_rate_s = 20 / 1000,
     -- list of messages
     sanitization_messages = {},
@@ -37,6 +38,11 @@ local M = {
 }
 function M.set_tick_rate(tick_rate)
     M.tick_rate_s = tick_rate
+end
+
+function M.set_input_queue(input_queue)
+    assert(input_queue.cap)
+    M.input_queue = input_queue
 end
 
 function M.set_sanitization_messages(sm)
@@ -55,17 +61,18 @@ function M.on_connect(room)
 end
 
 function M.clear_outsynced_inputs(server_tick)
-    local start = M.input_queue:size()
-    while M.input_queue:size() > 0 and M.input_queue:peek().tick_reference < (server_tick or 0) do
-        M.input_queue:pop()
-        if M.input_queue:size() == 0 then
-            break
-        end
-    end
-    local input_count = start - M.input_queue:size()
-    if input_count > 0 then
-        log:info(string.format("removed %d inputs", input_count))
-    end
+    M.input_queue:cap(server_tick)
+    -- local start = M.input_queue:size()
+    -- while M.input_queue:size() > 0 and M.input_queue:peek().tickReference < (server_tick or 0) do
+    --     M.input_queue:pop()
+    --     if M.input_queue:size() == 0 then
+    --         break
+    --     end
+    -- end
+    -- local input_count = start - M.input_queue:size()
+    -- if input_count > 0 then
+    --     log:info(string.format("removed %d inputs", input_count))
+    -- end
 end
 
 function M.on_tick(room)
@@ -76,7 +83,6 @@ function M.on_client_ticked(room)
     M.clear_outsynced_inputs(room.state.tick)
     M.client_ticked:invoke(room, M.tick, room.state.tick or 0)
     M.tick = M.tick + 1
-    M.tick_dif = (room.state.tick or 0) - M.tick
     log:info(string.format(
         "client_t=%d, server_tick=%d    | delta=%d",
         M.tick or -999,
@@ -90,14 +96,12 @@ end
 ---@param input any
 ---@param name string
 ---@param apply fun(agentobj)
-function M.on_input(input, name, apply)
-    M.input_queue:push(Input({
-        tick_reference = M.tick or 0,
-        value = input,
-        name = name,
-        apply = apply,
-    }))
-    M.register_message(name, input)
+function M.on_input(input)
+    assert(input.tickReference)
+    assert(input.name)
+    print("input_on",input.tickReference)
+    M.input_queue:upsert(input)
+    M.register_message(input.name, input)
 end
 
 local function test_network()

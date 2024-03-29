@@ -2,7 +2,7 @@ local nc = require("common.new_class")
 ---@class Deque
 ---@field list table
 ---@field new fun():Deque
----@field push fun(item:any):void
+---@field push fun(self: Deque, item:any):void
 ---@field pop fun():any
 ---@field peek fun():any
 M = nc.new_class({})
