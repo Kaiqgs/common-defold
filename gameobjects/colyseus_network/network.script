@@ -76,17 +76,23 @@ connect = function(self, client)
         room:on("error", function(code, message)
             log:error("code => %s, message => %s", code, message)
         end)
-        room:on("leave", function()
-            room:removeAllListeners()
+        room:on("leave", function(consented)
+            -- room:removeAllListeners()
             self.room = nil
-            timer_handle = while_disconnected(self, client)
+            if not consented then
+                timer_handle = while_disconnected(self, client)
+            end
         end)
     end
 end
 
 function init(self)
-    local client = ColyseusClient.new("ws://localhost:2567")
-    client:join_or_create("game", {}, connect(self, client))
+    self.client = ColyseusClient.new("ws://localhost:2567")
+    self.client:join_or_create("game", {}, connect(self, self.client))
+    network.disconnected:subscribe(function(consented)
+        self.room:leave(consented or false)
+        -- self.client
+    end)
     self.time_elapsed = 0
 end
 
@@ -127,4 +133,11 @@ function update(self, dt)
     network.clear_messages()
 end
 
+function final(self)
+    if self.room then
+        self.room:leave(false)
+    end
+    -- websocket
+    -- self.room:removeAllListeners()
+end
 on_message = util.on_message_map({})

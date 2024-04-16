@@ -25,8 +25,9 @@ log = log.module("commonet")
 ---@field clear_outsynced_inputs fun(server_tick:number)
 local M = {
     messages = {},
-    ticked = Event(), -- was: on_tick
-    connected = Event(), -- was: on_connect
+    ticked = Event(),
+    connected = Event(),
+    disconnected = Event(),
     -- Client needs to be manually invoked
     client_ticked = Event(),
     input_queue = {},
@@ -56,10 +57,6 @@ function M.clear_messages()
     M.messages = {}
 end
 
-function M.on_connect(room)
-    M.connected:invoke(room)
-end
-
 function M.clear_outsynced_inputs(server_tick)
     M.input_queue:cap(server_tick)
     -- local start = M.input_queue:size()
@@ -75,6 +72,9 @@ function M.clear_outsynced_inputs(server_tick)
     -- end
 end
 
+function M.on_connect(room)
+    M.connected:invoke(room)
+end
 function M.on_tick(room)
     M.ticked:invoke(room)
 end
@@ -92,6 +92,14 @@ function M.on_client_ticked(room)
     ))
 end
 
+function M.on_disconnected(...)
+    M.disconnected:invoke(...)
+    M.disconnected:flush()
+    M.connected:flush()
+    M.ticked:flush()
+    M.client_ticked:flush()
+end
+
 ---Represents
 ---@param input any
 ---@param name string
@@ -99,7 +107,7 @@ end
 function M.on_input(input)
     assert(input.tickReference)
     assert(input.name)
-    print("input_on",input.tickReference)
+    print("input_on", input.tickReference)
     M.input_queue:upsert(input)
     M.register_message(input.name, input)
 end

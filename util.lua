@@ -2,8 +2,10 @@ local log_module = require("common.log")
 local M = { NewClass = require("common.new_class").new_class }
 local log = log_module.module("util")
 
+M.empty_fn = function(...) end
+
 M.on_message_map = function(message_mapping)
-    local on_message = function(self, message_id, message, sender)
+    local function on_message(self, message_id, message, sender)
         local action = message_mapping[message_id]
         if action ~= nil then
             action(self, message_id, message, sender)
@@ -13,6 +15,19 @@ M.on_message_map = function(message_mapping)
         end
     end
     return on_message
+end
+
+M.on_input_map = function(input_mapping)
+    local function on_input(self, action_id, action)
+        local func = input_mapping[action_id]
+        if func ~= nil then
+            func(self, action_id, action)
+        else
+            local wrn_msg = string.format("unhandled input of id: %s", action_id)
+            log:warn(wrn_msg)
+        end
+    end
+    return on_input
 end
 
 function M.shallow_copy(table)
@@ -53,10 +68,21 @@ end
 
 local ran_names = {}
 function M.run_once(name, fn)
-   if ran_names[name] == nil then
+    if ran_names[name] == nil then
         ran_names[name] = 1
         fn()
-   end
+    end
+end
+ function M.find(table, value, comparator)
+    comparator = comparator or function(a, b)
+        return a == b
+    end
+    for i, v in ipairs(table) do
+        if comparator(v, value) then
+            return i
+        end
+    end
+    return nil
 end
 
 return M
