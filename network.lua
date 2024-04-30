@@ -33,10 +33,15 @@ local M = {
     input_queue = {},
     tick = 0,
     tick_rate_s = 20 / 1000,
+    ip_address = "localhost",
+    tick_stat = 0,
     -- list of messages
     sanitization_messages = {},
     tick_dif = 0,
 }
+function M.set_ip_adress(ip_address)
+    M.ip_address = ip_address
+end
 function M.set_tick_rate(tick_rate)
     M.tick_rate_s = tick_rate
 end
@@ -83,13 +88,13 @@ function M.on_client_ticked(room)
     M.clear_outsynced_inputs(room.state.tick)
     M.client_ticked:invoke(room, M.tick, room.state.tick or 0)
     M.tick = M.tick + 1
-    log:info(string.format(
-        "client_t=%d, server_tick=%d    | delta=%d",
-        M.tick or -999,
-        room.state.tick or -999,
-        -- agentobj.tickReference or -999,
-        M.tick_dif or 999
-    ))
+    -- log:info(string.format(
+    --     "client_t=%d, server_tick=%d    | delta=%d",
+    --     M.tick or -999,
+    --     room.state.tick or -999,
+    --     -- agentobj.tickReference or -999,
+    --     M.tick_dif or 999
+    -- ))
 end
 
 function M.on_disconnected(...)
@@ -100,16 +105,16 @@ function M.on_disconnected(...)
     M.client_ticked:flush()
 end
 
----Represents
----@param input any
----@param name string
----@param apply fun(agentobj)
-function M.on_input(input)
-    assert(input.tickReference)
-    assert(input.name)
-    print("input_on", input.tickReference)
-    M.input_queue:upsert(input)
-    M.register_message(input.name, input)
+function M.on_input(input_message)
+    -- assert(input.tickReference)
+    assert(input_message.name)
+    -- print("input_on", input_message.tickReference)
+    local inputs = M.input_queue:get(M.tick) or {
+        tickReference = M.tick,
+    }
+    inputs[input_message.name] = input_message
+    M.input_queue:upsert(inputs)
+    M.register_message("inputs", inputs)
 end
 
 local function test_network()

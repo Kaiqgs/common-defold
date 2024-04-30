@@ -52,8 +52,7 @@ connect = function(self, client)
         -- end)
 
         room.state:on_change(function()
-            log:info(string.format("state_on_change %s", room.sessionId))
-            tick(room)
+            -- log:info(string.format("state_on_change %s", room.sessionId))
             tick(room)
             if timer_handle then
                 stop_pollin_reconnect(timer_handle)
@@ -73,6 +72,17 @@ connect = function(self, client)
             log:info("Tick synced.")
         end)
 
+        room:on_message("stats", function(msg)
+            print("stats")
+            pprint(msg)
+            self.tick_stat = msg.tick
+            self.time_stat = msg.time
+        end)
+
+        room:on_message("ping", function(msg)
+            room:send("pong", msg)
+        end)
+
         room:on("error", function(code, message)
             log:error("code => %s, message => %s", code, message)
         end)
@@ -83,11 +93,17 @@ connect = function(self, client)
                 timer_handle = while_disconnected(self, client)
             end
         end)
+
+        timer.delay(1, true, function()
+            room:send("ping")
+        end)
     end
 end
 
+go.property("tick_stat", 0)
+go.property("time_stat", 0)
 function init(self)
-    self.client = ColyseusClient.new("ws://localhost:2567")
+    self.client = ColyseusClient.new(string.format("ws://%s:2567", network.ip_address))
     self.client:join_or_create("game", {}, connect(self, self.client))
     network.disconnected:subscribe(function(consented)
         self.room:leave(consented or false)
@@ -103,13 +119,14 @@ function update(self, dt)
     self.time_elapsed = self.time_elapsed + dt
     local client_ahead_dif = -math.min(network.tick_dif, -1)
     local client_behind_dif = math.max(network.tick_dif, 1)
-    local drop_diff = 5
+    local drop_diff = self.tick_stat  + 5
 
     network.tick_dif = (self.room.state.tick or 0) - network.tick
+    network.tick_stat = self.tick_stat
     if self.time_elapsed >= network.tick_rate_s then
         local n = math.floor(self.time_elapsed / network.tick_rate_s)
         if client_ahead_dif > drop_diff then
-            print("why am i here")
+            -- print("why am i here")
             -- local excessive_ticks = (client_ahead_dif - drop_diff)
             -- n = n - excessive_ticks
         else

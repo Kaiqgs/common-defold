@@ -2,8 +2,6 @@
 local util = require("common.util")
 
 ---@class Event
----@field counter number
----@field listeners EventListener[]
 local M = util.NewClass({})
 function M.new()
     local self = setmetatable({ listeners = {}, counter = 0 }, M)

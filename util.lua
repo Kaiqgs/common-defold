@@ -7,10 +7,10 @@ M.empty_fn = function(...) end
 M.on_message_map = function(message_mapping)
     local function on_message(self, message_id, message, sender)
         local action = message_mapping[message_id]
-        if action ~= nil then
+        if action then
             action(self, message_id, message, sender)
-        else
-            local wrn_msg = string.format("unhandled message of id: %s from %s", message_id, sender)
+        elseif action ~= false then
+            local wrn_msg = string.format("%s have unhandled message of id: %s from %s", msg.url(), message_id, sender)
             log:warn(wrn_msg)
         end
     end
@@ -20,10 +20,10 @@ end
 M.on_input_map = function(input_mapping)
     local function on_input(self, action_id, action)
         local func = input_mapping[action_id]
-        if func ~= nil then
+        if func then
             func(self, action_id, action)
-        else
-            local wrn_msg = string.format("unhandled input of id: %s", action_id)
+        elseif action ~= false then
+            local wrn_msg = string.format("%s did not handle input of id: %s", msg.url(), action_id)
             log:warn(wrn_msg)
         end
     end
@@ -73,7 +73,7 @@ function M.run_once(name, fn)
         fn()
     end
 end
- function M.find(table, value, comparator)
+function M.find(table, value, comparator)
     comparator = comparator or function(a, b)
         return a == b
     end
