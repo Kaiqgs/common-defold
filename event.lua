@@ -67,4 +67,5 @@ local function _moduleAssert()
 end
 _moduleAssert()
 
+---@type Event
 return M

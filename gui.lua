@@ -4,6 +4,7 @@
 local M = {
     default_shadow_offset = vmath.vector3(1, -1, 0),
     default_shadow_color = vmath.vector4(0, 0, 0, 1),
+    default_click_offset = vmath.vector3(1, -1, 0),
 }
 local util = require("common.util")
 local Event = require("common.event")
@@ -54,21 +55,32 @@ function ExtraNode.new(node_id, layer, shadowColor, offset)
     return self
 end
 
+function ExtraNode:is_enabled()
+    return gui.is_enabled(self.node, true) and gui.is_enabled(self.shadow, true)
+end
+
 function ExtraNode:on_button_press(action)
     local touching = gui.pick_node(self.node, action.x, action.y)
-    if not touching then
+    local enabled = self:is_enabled()
+    if not touching or not enabled then
         return
     end
     if action.pressed and not self.pressed then
         audio.play("blip")
 
         self.pressed = true
-        gui.set_position(self.node, gui.get_position(self.node) + vmath.vector3(1, -1, 0))
+        gui.set_position(
+            self.node,
+            gui.get_position(self.node) + M.default_click_offset
+        )
         self.on_press:invoke(action)
     end
     if action.released and self.pressed then
         self.pressed = false
-        gui.set_position(self.node, gui.get_position(self.node) + vmath.vector3(-1, 1, 0))
+        gui.set_position(
+            self.node,
+            gui.get_position(self.node) - M.default_click_offset
+        )
         self.on_release:invoke(action)
     end
     -- print(string.format("pressed %s, released %s, repeated %s", action.pressed, action.released, action.repeated))
@@ -105,7 +117,21 @@ end
 function ExtraNode:apply(modifier)
     modifier(self.node)
     modifier(self.shadow)
-    
+end
+
+function ExtraNode:play_flipbook(animation, complete_function, play_properties)
+    gui.play_flipbook(
+        self.node,
+        animation,
+        complete_function,
+        play_properties or {}
+    )
+    gui.play_flipbook(
+        self.shadow,
+        animation,
+        function() end,
+        play_properties or {}
+    )
 end
 
 M.addShadow = node_shadow

@@ -1,11 +1,11 @@
 local fps = require("common.fps")
-local ColyseusClient = require("colyseus.client")
+local ColyseusClient
 local util = require("common.util")
 local ctable = require("common.table")
 local network = require("common.network")
 local log = require("common.log")
 log = log.module("network")
-
+-- ColyseusClient = require("colyseus.client")
 local connect = nil
 local reconection_token = false
 local function tick(room)
@@ -119,7 +119,7 @@ function update(self, dt)
     self.time_elapsed = self.time_elapsed + dt
     local client_ahead_dif = -math.min(network.tick_dif, -1)
     local client_behind_dif = math.max(network.tick_dif, 1)
-    local drop_diff = self.tick_stat  + 5
+    local drop_diff = self.tick_stat + 5
 
     network.tick_dif = (self.room.state.tick or 0) - network.tick
     network.tick_stat = self.tick_stat

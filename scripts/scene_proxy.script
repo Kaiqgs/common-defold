@@ -35,6 +35,9 @@ local message_mapping = {
     [hash("proxy_unloaded")] = function(self, message_id, message, sender)
         msg.post(self.unloader, message_id)
     end,
+    [hash("set_time_step")] = function (self, message_id, message, sender)
+        msg.post(proxy_url, message_id, message)
+    end
 }
 
 on_message = util.on_message_map(message_mapping)

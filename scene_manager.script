@@ -10,7 +10,7 @@ go.property("eighth_scene", msg.url("url_8"))
 
 go.property("initial_scene", 1)
 go.property("last_scene", 8)
-go.property("stinger_url", msg.url("/controller#stinger"))
+go.property("stinger_url", msg.url("/stinger#stinger"))
 
 function init(self)
     self.transitioning = false
@@ -27,15 +27,6 @@ function init(self)
         self.eighth_scene,
     }
     msg.post(self.listed_proxy_controllers[self.initial_scene], "start")
-end
-
-function final(self)
-end
-
-function update(self, dt)
-end
-
-function fixed_update(self, dt)
 end
 
 local function _refresh(self, fn)
@@ -105,7 +96,20 @@ local message_mapping = {
         self.next_transition()
         self.next_transition = nil
     end,
-}
+    [hash("time_step")] = function(self, message_id, message, sender)
+        -- print("setting timestep")
+        -- pprint(message)
 
+        if not message.index or  not self.listed_proxy_controllers[message.index] then
+            print("not found", message.index)
+            return
+        end
+        msg.post(
+            self.listed_proxy_controllers[message.index],
+            "set_time_step",
+            { mode = message.mode, factor = message.factor }
+        )
+    end,
+}
 
 on_message = util.on_message_map(message_mapping)

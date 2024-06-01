@@ -1,27 +1,59 @@
 local random = require("common.random")
 local audio = require("common.audio")
 
-local pool_data = {}
-
 function init(self)
-	audio.on_register:subscribe(function(outline, gameobject)
-		for prop, pool in pairs(outline) do
-			local url = msg.url(gameobject .. "#" .. prop)
-			if pool_data[pool] == nil then
-				pool_data[pool] = { url }
-			else
-				table.insert(pool_data[pool], url)
-			end
+    self.queues = {
+        play = {},
+    }
+    self.is_playing = false
+    self.pool_data = {}
+    audio.on_register:subscribe(function(outline)
+        local self_url = msg.url()
+        local initiated_pools = {}
+        for prop, pool in pairs(outline) do
+            local url = msg.url(self_url.socket, self_url.path, prop)
+            -- print(url, "guten")
+            if self.pool_data[pool] == nil then
+                self.pool_data[pool] = {}
+            end
+            table.insert(self.pool_data[pool], url)
 
-			audio.pool_play(pool):subscribe(function(action)
-				local play_url = random.choice(pool_data[pool])
-				sound.play(play_url)
-			end)
-			audio.pool_stop(pool):subscribe(function(action)
-				for _, stop_url in ipairs(pool_data[pool]) do
-					sound.stop(stop_url)
-				end
-			end)
-		end
-	end)
+            if not initiated_pools[pool] then
+                -- print("activated pool:", pool)
+                audio.pool_check(pool):subscribe(function(data)
+                    data.is_playing = self.is_playing
+                end)
+                audio.pool_play(pool):subscribe(function(play_properties)
+                    table.insert(
+                        self.queues.play,
+                        { pool = pool, play_properties = play_properties or {} }
+                    )
+                end)
+                audio.pool_stop(pool):subscribe(function(action)
+                    for _, stop_url in ipairs(self.pool_data[pool]) do
+                        sound.stop(stop_url)
+                    end
+                    self.is_playing = false
+                end)
+                initiated_pools[pool] = true
+            end
+        end
+    end)
+end
+
+function update(self, dt)
+    if #self.queues.play > 0 then
+        local pool_to_play = table.remove(self.queues.play, 1)
+        -- print("just removed")
+        -- pprint(pool_to_play)
+        local pool = self.pool_data[pool_to_play.pool]
+        assert(pool, string.format("pool not found %s", tostring(pool)))
+        local play_url = random.choice(pool)
+        print("playing", play_url)
+        self.is_playing = true
+        -- msg.post(play_url, "play_sound", {  })
+        sound.play(play_url, pool_to_play.play_properties or {}, function()
+            self.is_playing = false
+        end)
+    end
 end

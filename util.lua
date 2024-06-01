@@ -10,7 +10,12 @@ M.on_message_map = function(message_mapping)
         if action then
             action(self, message_id, message, sender)
         elseif action ~= false then
-            local wrn_msg = string.format("%s have unhandled message of id: %s from %s", msg.url(), message_id, sender)
+            local wrn_msg = string.format(
+                "%s have unhandled message of id: %s from %s",
+                tostring(msg.url()),
+                tostring(message_id),
+                tostring(sender)
+            )
             log:warn(wrn_msg)
         end
     end
@@ -22,12 +27,18 @@ M.on_input_map = function(input_mapping)
         local func = input_mapping[action_id]
         if func then
             func(self, action_id, action)
-        elseif action ~= false then
-            local wrn_msg = string.format("%s did not handle input of id: %s", msg.url(), action_id)
+        elseif action ~= false and sys.get_engine_info().debug then
+            local wrn_msg = string.format("%s did not handle input of id: %s", tostring(msg.url()), tostring(action_id))
             log:warn(wrn_msg)
         end
     end
     return on_input
+end
+
+function M.assert_contains(object, properties)
+    for _, k in ipairs(properties) do
+        assert(object[k], string.format("object does not contain property: %s", k))
+    end
 end
 
 function M.shallow_copy(table)
@@ -42,18 +53,6 @@ M.ModuloWrap = function(one_indexed, n, delta)
     local zero_indexed = one_indexed - 1
     local modulo_wrap = (zero_indexed + delta) % n
     return modulo_wrap + 1
-end
-M.GetValues = function(tbl)
-    local values = {}
-    for _, v in pairs(tbl) do
-        table.insert(values, v)
-    end
-    return values
-end
-
-local assertGetValues = M.GetValues({ a = 1, b = 2, c = 3 })
-for _, v in ipairs(assertGetValues) do
-    assert(v == 1 or v == 2 or v == 3)
 end
 
 function M.irange(i)
@@ -72,17 +71,6 @@ function M.run_once(name, fn)
         ran_names[name] = 1
         fn()
     end
-end
-function M.find(table, value, comparator)
-    comparator = comparator or function(a, b)
-        return a == b
-    end
-    for i, v in ipairs(table) do
-        if comparator(v, value) then
-            return i
-        end
-    end
-    return nil
 end
 
 return M
