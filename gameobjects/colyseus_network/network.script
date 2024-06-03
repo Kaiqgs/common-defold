@@ -1,11 +1,11 @@
 local fps = require("common.fps")
 local ColyseusClient
 local util = require("common.util")
-local ctable = require("common.table")
+local _table = require("common.table")
 local network = require("common.network")
 local log = require("common.log")
 log = log.module("network")
--- ColyseusClient = require("colyseus.client")
+ColyseusClient = require("colyseus.client")
 local connect = nil
 local reconection_token = false
 local function tick(room)
@@ -119,7 +119,7 @@ function update(self, dt)
     self.time_elapsed = self.time_elapsed + dt
     local client_ahead_dif = -math.min(network.tick_dif, -1)
     local client_behind_dif = math.max(network.tick_dif, 1)
-    local drop_diff = self.tick_stat + 5
+    local drop_diff = 5
 
     network.tick_dif = (self.room.state.tick or 0) - network.tick
     network.tick_stat = self.tick_stat
@@ -143,7 +143,7 @@ function update(self, dt)
     -- end
 
     for key, payload in pairs(network.messages) do
-        assert(ctable.find(network.sanitization_messages, key), string.format("Message %s is not sanitized", key))
+        assert(_table.find(network.sanitization_messages, key), string.format("Message %s is not sanitized", key))
         -- log:info(string.format("sending `%s`", key))
         self.room:send(key, payload)
     end

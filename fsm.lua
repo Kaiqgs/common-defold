@@ -59,8 +59,10 @@ function FiniteState.new(o)
     ---@return boolean
     function self:predicate(otherstate, ...)
         -- return o.done or not o.predicate or (o.predicate and o.predicate(self, ...))
-        local predicate_to = self.predicate_to[otherstate.name] and self.predicate_to[otherstate.name](...) or false
-        return self.done or not not (o.predicate or emptyFunc)(self, ...) or predicate_to
+        local predicate_to = self.predicate_to[otherstate.name]
+                and self.predicate_to[otherstate.name](self, otherstate, ...)
+            or false
+        return self.done or (o.predicate or emptyFunc)(self, otherstate, ...) or predicate_to
     end
 
     return self
@@ -134,9 +136,30 @@ end
 local function _moduleAssert()
     -- Semaphore
     local states = {
-        red = FiniteState({ name = "red", done = true }),
-        yellow = FiniteState({ name = "yellow", done = true }),
-        green = FiniteState({ name = "green", done = true }),
+        red = FiniteState({
+            name = "red",
+            -- done = true,
+            predicate = function(self, otherstate)
+                assert(otherstate ~= nil, "predicate to nothing")
+                return true
+            end,
+        }),
+        yellow = FiniteState({
+            name = "yellow",
+            -- done = true,
+            predicate = function(self, otherstate)
+                assert(otherstate ~= nil, "predicate to nothing")
+                return true
+            end,
+        }),
+        green = FiniteState({
+            name = "green",
+            done = true,
+            predicate = function(self, otherstate)
+                print("my otherstate==", otherstate)
+                assert(otherstate ~= nil, "predicate to nothing")
+            end,
+        }),
     }
     local fsm = FiniteStateMachine({
             states = states,
