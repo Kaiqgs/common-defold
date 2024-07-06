@@ -2,11 +2,13 @@ local log_module = require("common.log")
 local M = { NewClass = require("common.new_class").new_class }
 local log = log_module.module("util")
 
-M.empty_fn = function(...) end
+function M.empty_fn(...) end
 
-M.on_message_map = function(message_mapping)
+M.empty_alias = "empty"
+
+function M.on_message_map(message_mapping)
     local function on_message(self, message_id, message, sender)
-        local action = message_mapping[message_id]
+        local action = message_mapping[message_id or M.empty_alias]
         if action then
             action(self, message_id, message, sender)
         elseif action ~= false then
@@ -22,9 +24,9 @@ M.on_message_map = function(message_mapping)
     return on_message
 end
 
-M.on_input_map = function(input_mapping)
+function M.on_input_map(input_mapping)
     local function on_input(self, action_id, action)
-        local func = input_mapping[action_id]
+        local func = input_mapping[action_id or M.empty_alias]
         if func then
             func(self, action_id, action)
         elseif action ~= false and sys.get_engine_info().debug then
@@ -49,7 +51,7 @@ function M.shallow_copy(table)
     return copy
 end
 
-M.ModuloWrap = function(one_indexed, n, delta)
+function M.ModuloWrap(one_indexed, n, delta)
     local zero_indexed = one_indexed - 1
     local modulo_wrap = (zero_indexed + delta) % n
     return modulo_wrap + 1
@@ -71,6 +73,9 @@ function M.run_once(name, fn)
         ran_names[name] = 1
         fn()
     end
+end
+function M.map(value, istart, istop, ostart, ostop)
+    return ostart + (ostop - ostart) * ((value - istart) / (istop - istart))
 end
 
 return M

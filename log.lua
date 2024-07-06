@@ -10,6 +10,7 @@ function Logger.new(namespace)
     --- @field info fun(...)
     --- @field warn fun(...)
     --- @field error fun(...)
+    --- @field trace fun(...)
     local self = setmetatable({ namespace = namespace, loglevel = 1 }, Logger)
     self.__index = self
     return self
@@ -21,8 +22,8 @@ function Logger:_meta(metaname)
     self[metaname] = function(this, ...)
         -- if matching == nil then
         if priority >= this.loglevel then
-            local namespace = this.namespace and (this.namespace .. "|") or ""
-            print(string.format("%s%s: ", namespace, metaname), ...)
+            local namespace = this.namespace and (this.namespace) or ""
+            print(string.format("%s[%s] ", namespace, metaname), ...)
         end
         -- elseif matching ~= nil then
         --     --TODO: add string matching and level filter
@@ -31,8 +32,9 @@ function Logger:_meta(metaname)
     end
 end
 
-Logger:_meta("debug")
+Logger:_meta("trace")
 Logger:_meta("info")
+Logger:_meta("debug")
 Logger:_meta("warn")
 Logger:_meta("error")
 

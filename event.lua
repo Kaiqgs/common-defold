@@ -13,9 +13,7 @@ function M:subscribe(callback)
     self.counter = self.counter + 1
     table.insert(
         self.listeners,
-        ---@class EventListener
-        ---@field id integer
-        ---@field callback function
+        ---@type EventListener
         {
             id = self.counter,
             callback = function(...)

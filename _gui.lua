@@ -1,6 +1,4 @@
----@class CommonGui
----@field default_shadow_offset vector3
----@field extrafy function
+---@type CommonGui
 local M = {
     default_shadow_offset = vmath.vector3(1, -1, 0),
     default_shadow_color = vmath.vector4(0, 0, 0, 1),
@@ -22,15 +20,7 @@ local function node_shadow(node, parent, color, offset, layer)
     return shadow
 end
 
---- @class ExtraNode
---- @field node any
---- @field shadow any
---- @field parent any
---- @field on_press Event
---- @field on_release Event
---- @field on_button_press function
---- @field set_text function
---- @field apply function
+--- @type ExtraNode
 local ExtraNode = util.NewClass({})
 
 function ExtraNode.new(node_id, layer, shadowColor, offset)
@@ -49,6 +39,8 @@ function ExtraNode.new(node_id, layer, shadowColor, offset)
         shadow = node_shadow(node, parent, shadowColor, offset, layer),
         on_press = Event(),
         on_release = Event(),
+        on_hover = Event(),
+        on_unhover = Event()
     }
     local self = setmetatable(new, ExtraNode)
     self.__index = self
@@ -60,35 +52,48 @@ function ExtraNode:is_enabled()
 end
 
 function ExtraNode:on_button_press(action)
+    if not self:is_enabled() then
+        return
+    end
     local touching = gui.pick_node(self.node, action.x, action.y)
-    local enabled = self:is_enabled()
-    if not touching or not enabled then
+    if not touching then
         return
     end
     if action.pressed and not self.pressed then
         audio.play("blip")
 
         self.pressed = true
-        gui.set_position(
-            self.node,
-            gui.get_position(self.node) + M.default_click_offset
-        )
+        gui.set_position(self.node, gui.get_position(self.node) + M.default_click_offset)
         self.on_press:invoke(action)
     end
     if action.released and self.pressed then
         self.pressed = false
-        gui.set_position(
-            self.node,
-            gui.get_position(self.node) - M.default_click_offset
-        )
+        gui.set_position(self.node, gui.get_position(self.node) - M.default_click_offset)
         self.on_release:invoke(action)
     end
     -- print(string.format("pressed %s, released %s, repeated %s", action.pressed, action.released, action.repeated))
 end
 
+function ExtraNode:on_button_hover(action)
+    if not self:is_enabled() then
+        return
+    end
+    local touching = gui.pick_node(self.node, action.x, action.y)
+    if not touching and self.hovered then
+        self.hovered = false
+        self.on_unhover:invoke(action)
+        print("unhover | hover out")
+    elseif touching and not self.hovered then
+        self.hovered = true
+        self.on_hover:invoke(action)
+        print("hover | hover in")
+    end
+end
+
 function ExtraNode:set_text(value)
-    gui.set_text(self.node, value)
-    gui.set_text(self.shadow, value)
+    self:apply(function(node)
+        gui.set_text(node, value)
+    end)
 end
 
 function ExtraNode:animate_text(value, delay, base_str)
@@ -105,13 +110,15 @@ function ExtraNode:animate_text(value, delay, base_str)
 end
 
 function ExtraNode:set_alpha(value)
-    gui.set_alpha(self.node, value)
-    gui.set_alpha(self.shadow, value)
+    self:apply(function(node)
+        gui.set_alpha(node, value)
+    end)
 end
 
 function ExtraNode:set_enabled(value)
-    gui.set_enabled(self.node, value)
-    gui.set_enabled(self.shadow, value)
+    self:apply(function(node)
+        gui.set_enabled(node, value)
+    end)
 end
 
 function ExtraNode:apply(modifier)
@@ -120,18 +127,8 @@ function ExtraNode:apply(modifier)
 end
 
 function ExtraNode:play_flipbook(animation, complete_function, play_properties)
-    gui.play_flipbook(
-        self.node,
-        animation,
-        complete_function,
-        play_properties or {}
-    )
-    gui.play_flipbook(
-        self.shadow,
-        animation,
-        function() end,
-        play_properties or {}
-    )
+    gui.play_flipbook(self.node, animation, complete_function, play_properties or {})
+    gui.play_flipbook(self.shadow, animation, function() end, play_properties or {})
 end
 
 M.addShadow = node_shadow
@@ -154,6 +151,16 @@ function M.on_input_touch(nodes_list)
         for _, nodes in ipairs(nodes_list) do
             for _, node in pairs(nodes) do
                 node:on_button_press(action)
+            end
+        end
+    end
+end
+
+function M.on_input_hover(nodes_list)
+    return function(_, _, action)
+        for _, nodes in ipairs(nodes_list) do
+            for _, node in pairs(nodes) do
+                node:on_button_hover(action)
             end
         end
     end

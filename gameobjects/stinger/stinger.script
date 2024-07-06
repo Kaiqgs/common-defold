@@ -1,0 +1,15 @@
+local stinger = require("common.gameobjects.stinger.stinger")
+go.property("is_shader", true)
+go.property("delay_open", 2)
+local gui_id = "#gui"
+function init(self)
+    -- if self.is_shader then
+    --     go.delete(gui_id, false)
+    -- else
+    --     go.delete("#", false)
+    -- end
+end
+
+function on_message(...)
+    stinger.shader_animation(...)
+end

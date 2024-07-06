@@ -1,4 +1,4 @@
-local _table = require("common.table")
+local _table = require("common._table")
 local M = {}
 
 function M.choice(table)

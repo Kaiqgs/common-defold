@@ -1,5 +1,4 @@
 local Event = require("common.event")
-local nc = require("common.new_class")
 local util = require("common.util")
 local log = require("common.log")
 log = log.module("commonet")
@@ -33,14 +32,18 @@ local M = {
     input_queue = {},
     tick = 0,
     tick_rate_s = 20 / 1000,
-    ip_address = "localhost",
+    ip_address = "216-238-112-127.colyseus.dev",
+    ip_prefix = "wss",
+    port = 80,--2567,
     tick_stat = 0,
     -- list of messages
     sanitization_messages = {},
     tick_dif = 0,
 }
-function M.set_ip_adress(ip_address)
+function M.set_ip_adress(ip_address, ip_prefix, port)
     M.ip_address = ip_address
+    M.ip_prefix = ip_prefix or M.ip_prefix
+    M.port = port or M.port
 end
 function M.set_tick_rate(tick_rate)
     M.tick_rate_s = tick_rate
@@ -63,6 +66,9 @@ function M.clear_messages()
 end
 
 function M.clear_outsynced_inputs(server_tick)
+    if server_tick == nil then
+        return
+    end
     M.input_queue:cap(server_tick)
     -- local start = M.input_queue:size()
     -- while M.input_queue:size() > 0 and M.input_queue:peek().tickReference < (server_tick or 0) do
@@ -85,6 +91,9 @@ function M.on_tick(room)
 end
 
 function M.on_client_ticked(room)
+    if not room then
+        return
+    end
     M.clear_outsynced_inputs(room.state.tick)
     M.client_ticked:invoke(room, M.tick, room.state.tick or 0)
     M.tick = M.tick + 1
@@ -103,10 +112,12 @@ function M.on_disconnected(...)
     M.connected:flush()
     M.ticked:flush()
     M.client_ticked:flush()
+    M.messages = {}
+    M.input_queue:clear()
+    M.tick = 0
 end
 
 function M.on_input(input_message)
-    -- assert(input.tickReference)
     assert(input_message.name)
     -- print("input_on", input_message.tickReference)
     local inputs = M.input_queue:get(M.tick) or {

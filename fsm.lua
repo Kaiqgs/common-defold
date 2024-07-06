@@ -1,6 +1,6 @@
 local _stateCounter = 0
 local FiniteStateBuilder = require("common.fsb")
-local _table = require("common.table")
+local _table = require("common._table")
 local util = require("common.util")
 local function emptyFunc(...) end
 local function Contains(tbl, value)
@@ -71,9 +71,12 @@ end
 function FiniteStateMachine.new(o)
     o = o or {}
     local states = {}
+    local counter = 0
     for _, v in pairs(o.states or {}) do
         states[v.name] = v
+        counter = counter +1
     end
+    assert(counter > 0, "missing states")
 
     local self = setmetatable(
         ---@class FiniteStateMachine

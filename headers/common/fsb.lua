@@ -63,10 +63,11 @@ function FS:predicate(otherstate, ...)
         or false
     return self.done or not not self._predicate(self, ...) or predicate_to
 end
-function M.new(_)
+function M.new(name)
     local self = setmetatable({}, M)
     self = self.__index
     self.data = FS()
+    self.data.name = name or self.data.name
     return self
 end
 

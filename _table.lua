@@ -108,4 +108,19 @@ function M.shallow_copy(tbl)
     return copy
 end
 
+function M.min(list, getter)
+    getter = getter or function(...)
+        return ...
+    end
+    local lowestIndex = 1
+    for k, v in pairs(list) do
+        if v < getter(list[lowestIndex]) then
+            lowestIndex = k
+        end
+    end
+    return list[lowestIndex]
+end
+
+function M.max() end
+
 return M
