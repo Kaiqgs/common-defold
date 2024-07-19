@@ -26,7 +26,7 @@ end
 function FS:enter(...)
     self.done = self.done or false
     self.context = ...
-    self:_enter( ...)
+    self:_enter(...)
 end
 function FS:exit(...)
     self:_exit(...)
@@ -37,7 +37,7 @@ end
 
 function FS:update(...)
     -- self.context = ... or self.context
-    self:_update( ...)
+    self:_update(...)
 end
 
 function FS:predicate(otherstate, ...)
@@ -48,10 +48,11 @@ function FS:predicate(otherstate, ...)
     return self.done or not not self:_predicate(...) or predicate_to
 end
 
-function M.new(_)
+function M.new(name)
     local self = setmetatable({}, M)
     self = self.__index
     self.data = FS()
+    self.data.name = name or self.data.name
     return self
 end
 

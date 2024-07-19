@@ -1,3 +1,5 @@
+local util = require("common.util")
+local suid = require("common.suid")
 local log_module = require("common.log")
 local log = log_module.module("cmod")
 local play_state = {
@@ -15,32 +17,35 @@ local M = {
 }
 local default_instance = "default"
 
-local function get_alias(event, instance_name)
-    local alias = string.format("%s@%s", event, instance_name)
+---@param f_audio Audio
+local function get_alias(f_audio)
+    local alias = string.format("%s@%s", f_audio.event, f_audio.instance)
     return alias
 end
 
-local function get_instance(event, instance_name, create)
-    assert(type(event) == "string", ("got event with format (%s)"):format(tostring(type(event))))
-    instance_name = instance_name or default_instance
-    local alias = get_alias(event, instance_name)
-    local data = M.data[event]
+local function get_instance(f_audio, create)
+    assert(type(f_audio.event) == "string", ("got event with format (%s)"):format(tostring(type(event))))
+    f_audio.instance = f_audio.instance or default_instance
+    local alias = get_alias(f_audio)
+    local data = M.data[f_audio.event]
     -- local has_been_played = (data ~= nil and not data.is_played or false)
     if data == nil then
         log:warn(string.format("event %s, does not exist", alias))
         return nil
     end
 
-    local instance = data.instances[instance_name]
+    local instance = data.instances[f_audio.instance]
     if instance == nil and create then
         instance = data.description:create_instance()
-        data.instances[instance_name] = instance
+        data.instances[f_audio.instance] = instance
     elseif instance == nil then
         log:warn(string.format("instance %s, does not exist", alias))
     end
 
     return instance
 end
+
+---@param event string
 function M.get_event_call_name(event)
     return string.format(M.event_format, event)
 end
@@ -72,19 +77,18 @@ function M.set_outline(outline)
     end
 end
 
----@param event string
-function M.start(event, instance_name)
-    local alias = get_alias(event, instance_name)
-
-    local instance = get_instance(event, instance_name, true)
+---@param audio_ Audio
+function M.start(audio_)
+    local alias = get_alias(audio_)
+    local instance = get_instance(audio_, true)
     if instance == nil then
         log:trace(string.format("attempting to start %s, but it does not exist", alias))
         return false
     end
-    M.started_once[event] = true
+    M.started_once[audio_.event] = true
 
     -- print("debug fmodaudio")
-    -- pprint(M.data[event].instances)
+    -- pprint(M.data[f_audio.event].instances)
     if instance:get_playback_state() ~= play_state.stopped then
         log:trace(
             string.format(
@@ -100,19 +104,19 @@ function M.start(event, instance_name)
     return instance
 end
 
-function M.get_playback_state(event, instance_name)
-    local instance = get_instance(event, instance_name)
+function M.get_playback_state(f_audio)
+    local instance = get_instance(f_audio)
     if instance == nil then
         return nil
     end
     return instance:get_playback_state()
 end
 
-function M.stop(event, instance_name, stop_type)
-    instance_name = instance_name or default_instance
+function M.stop(f_audio, stop_type)
+    f_audio.instance = f_audio.instance or default_instance
     stop_type = stop_type or fmod.STUDIO_STOP_IMMEDIATE
-    local alias = get_alias(event, instance_name)
-    local instance = get_instance(event, instance_name)
+    local alias = get_alias(f_audio)
+    local instance = get_instance(f_audio)
 
     if instance == nil then
         log:warn(string.format("attempting to stop instance %s, does not exist", alias))
@@ -130,9 +134,9 @@ function M.stop(event, instance_name, stop_type)
     return true
 end
 
-function M.set_3d_attributes(event, instance_name, attributes)
-    local alias = get_alias(event, instance_name)
-    local instance = get_instance(event, instance_name, true)
+function M.set_3d_attributes(f_audio, attributes)
+    local alias = get_alias(f_audio)
+    local instance = get_instance(f_audio, true)
     if instance == nil then
         log:trace(string.format("attempting to set 3D attributes on %s, does not exist", alias))
         return false
@@ -147,7 +151,7 @@ function M.set_3d_attributes(event, instance_name, attributes)
     -- print("instance 3d attr")
     -- pprint(attributes)
     instance:set_3d_attributes(attr)
-    -- print("instance after", event, instance_name)
+    -- print("instance after", f_audio)
     -- local attributes = instance:get_3d_attributes()
     -- pprint("position", attributes.position)
     -- pprint("forward", attributes.forward)
@@ -184,28 +188,43 @@ function M.final()
     end
 end
 
-function M.start_at(position, event, instance_name)
-    M.set_3d_attributes(event, instance_name, {
+function M.start_at(position, f_audio)
+    M.set_3d_attributes(f_audio, {
         position = M.xy_to_xz(position),
     })
-    M.start(event, instance_name)
+    M.start(f_audio)
 end
 
-function M.release(event, instance_name)
-    local instance = get_instance(event, instance_name)
+---@param audio Audio
+function M.release(audio)
+    local instance = get_instance(audio)
     if instance == nil then
         return
     end
-    M.stop(event, instance_name)
-    M.data[event][instance_name] = nil
+    M.stop(audio)
+    M.data[audio.event][audio.instance] = nil
 end
 
-function M.set_parameter_by_name(event, instance_name, param, value, ignoreseek)
-    local instance = get_instance(event, instance_name)
+function M.set_parameter_by_name(f_audio, param, value, ignoreseek)
+    local instance = get_instance(f_audio)
     if instance == nil then
         return
     end
     instance:set_parameter_by_name(param, value, ignoreseek or false)
+end
+
+---@param event string
+---@param instance string
+---@return Audio
+function M.create(event, instance)
+    return { event = event, instance = instance or suid.rnd() }
+end
+
+---@param event string
+---@param instance string
+---@return Audio
+function M.create_default(event, instance)
+    return { event = event, instance = instance or default_instance }
 end
 
 return M
