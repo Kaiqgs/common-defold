@@ -22,7 +22,7 @@ ExtraNode = {}
 ---@field default_shadow_offset vector3
 ---@field default_shadow_color vector3
 ---@field default_click_offset vector3
----@field extrafy fun(nodes)
+---@field extrafy fun(node_ids, layer, shadowColor, offset): table<string, ExtraNode>
 ---@field on_input_touch fun(nodes_list) : fun(_, _, action)
 CommonGui = {}
 
